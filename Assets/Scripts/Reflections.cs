@@ -26,17 +26,22 @@ public class Reflections : MonoBehaviour
 
                 // Create a mirrored version of "cue"
                 GameObject mirroredObject = Instantiate(grandchild.gameObject, grandchild.position, grandchild.rotation);
-                mirroredObject.transform.parent = mirroredParent.transform;
+                mirroredObject.name = "reflection";
+                mirroredObject.transform.parent = grandchild.transform;
 
                 // Flip along Y-axis
                 Vector3 mirroredScale = mirroredObject.transform.localScale;
                 mirroredScale.y = -mirroredScale.y;
                 mirroredObject.transform.localScale = mirroredScale;
 
+                // Flip the y-coordinate
                 Vector3 mirroredPosition = mirroredObject.transform.position;
                 mirroredPosition.y = -mirroredPosition.y;
                 mirroredObject.transform.position = mirroredPosition;
-
+                
+                //For the imported CAD a rotation is also required:
+                mirroredObject.transform.Rotate(180f,0f,0f);
+                
                 // Set mirrored object's layer
                 mirroredObject.layer = reflectionLayerInt;
             }

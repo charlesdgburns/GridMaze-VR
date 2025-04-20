@@ -4,7 +4,7 @@ using UnityEngine;
 public class GameController : MonoBehaviour
 {
     public MazeGenerator mazeGenerator;
-
+    public MazeController mazeController;
     void Start()
 {
     List<string> connections = new List<string> {"A1-A2",
@@ -60,6 +60,7 @@ public class GameController : MonoBehaviour
     "G5-G6",
     "G6-G7", };
     mazeGenerator.GenerateMaze(connections);
+    mazeController.InitializeTowerDictionary();
 }
 
     // Update is called once per frame
