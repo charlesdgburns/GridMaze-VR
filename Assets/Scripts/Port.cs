@@ -4,7 +4,7 @@ public class Port : MonoBehaviour, IsInteractable
 {
     private string towerName;
     private GameStateManager gameStateManager;
-    
+    private AbcdTaskManager AbcdTaskManager;
     void Start()
     {
         // Get the tower name from the parent object
@@ -14,7 +14,10 @@ public class Port : MonoBehaviour, IsInteractable
         gameStateManager = GameStateManager.Instance;
         if (gameStateManager == null)
         {
+            AbcdTaskManager = AbcdTaskManager.Instance;
+            if (AbcdTaskManager == null){
             Debug.LogError("GameStateManager not found in the scene!");
+            };
         }
         
         //Debug.Log($"Port initialized for tower: {towerName}"); //This seems to work
@@ -30,8 +33,10 @@ public class Port : MonoBehaviour, IsInteractable
             gameStateManager.RegisterPoke(towerName);
         }
         else
-        {
+        {   AbcdTaskManager.RegisterPoke(towerName);
+            if (AbcdTaskManager == null){
             Debug.LogError("Cannot register interaction: GameStateManager is null");
+            }
         }
     }
 }

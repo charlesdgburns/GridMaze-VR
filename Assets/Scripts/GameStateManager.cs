@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // Define the State enum before the GameStateManager class
-public enum State
+public enum GameState
 {
     ITI,
     Cue,
@@ -24,7 +24,7 @@ public class GameStateManager : MonoBehaviour
     public string endSceneName = "EndScene"; // Scene to load when session ends
     
     private string logFilePath;
-    private State currentState;
+    private GameState currentState;
     private List<string> goalSet = new List<string> { "A1", "A2", "A3", "A4", "A5", "A6", "A7",
                                                     "B1", "B2", "B3", "B4", "B5", "B6", "B7",
                                                     "C1","C2","C3","C4","C5","C6","C7",
@@ -83,7 +83,7 @@ public class GameStateManager : MonoBehaviour
         LogEvent("Session started");
         
         // Start with ITI state
-        SetState(State.ITI);
+        SetState(GameState.ITI);
     }
     
     private void EndSession()
@@ -120,10 +120,10 @@ public class GameStateManager : MonoBehaviour
         File.WriteAllText(logFilePath, "Session Log\n");
     }
     
-    public void SetState(State newState)
+    public void SetState(GameState newState)
     {
         // Only process state changes if session is active
-        if (!sessionActive && newState != State.ITI)
+        if (!sessionActive && newState != GameState.ITI)
         {
             return;
         }
@@ -133,16 +133,16 @@ public class GameStateManager : MonoBehaviour
         
         switch (newState)
         {
-            case State.ITI:
+            case GameState.ITI:
                 StartCoroutine(ITIState());
                 break;
-            case State.Cue:
+            case GameState.Cue:
                 StartCoroutine(CueState());
                 break;
-            case State.PokedIn:
+            case GameState.PokedIn:
                 StartCoroutine(PokedInState());
                 break;
-            case State.Reward:
+            case GameState.Reward:
                 StartCoroutine(RewardState());
                 break;
         }
@@ -156,7 +156,7 @@ public class GameStateManager : MonoBehaviour
         // Only proceed if session is still active
         if (sessionActive)
         {
-            SetState(State.Cue);
+            SetState(GameState.Cue);
         }
     }
     
@@ -184,7 +184,7 @@ public class GameStateManager : MonoBehaviour
         if (!sessionActive)
             return;
             
-        if (currentState == State.Cue)
+        if (currentState == GameState.Cue)
         {
             if (towerName == currentGoal)
             {
@@ -192,7 +192,7 @@ public class GameStateManager : MonoBehaviour
                 float reactionTime = Time.time - trialStartTime;
                 totalReactionTime += reactionTime;
                 LogEvent($"Correct poke at {towerName}. Reaction time: {reactionTime:F2} seconds");
-                SetState(State.PokedIn);
+                SetState(GameState.PokedIn);
             }
             else if (!errorPokeList.Contains(towerName))
             {
@@ -207,7 +207,7 @@ public class GameStateManager : MonoBehaviour
     {
         trialEndTime = Time.time;
         yield return new WaitForSeconds(0.2f);
-        SetState(State.Reward);
+        SetState(GameState.Reward);
     }
     
     private IEnumerator RewardState()
@@ -224,11 +224,11 @@ public class GameStateManager : MonoBehaviour
         // Only proceed if session is still active
         if (sessionActive)
         {
-            SetState(State.ITI);
+            SetState(GameState.ITI);
         }
     }
     
-    private void LogStateChange(State state)
+    private void LogStateChange(GameState state)
     {
         string logEntry = $"{DateTime.Now:HH:mm:ss} - State changed to {state}";
         File.AppendAllText(logFilePath, logEntry + "\n");
