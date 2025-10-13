@@ -261,3 +261,16 @@ public class GameStateManager : MonoBehaviour
         EndSession();
     }
 }
+
+// create name space for events
+namespace GridMaze.Data {
+  public static class GameEvents {
+    public static event Action<string> OnPoke;     // pass portId or location
+    public static event Action<string> OnReward;   // pass rewardId or reason
+    public static event Action<string> OnCustom;   // any custom marker
+
+    public static void RaisePoke(string info) => OnPoke?.Invoke(info);
+    public static void RaiseReward(string info) => OnReward?.Invoke(info);
+    public static void RaiseCustom(string info) => OnCustom?.Invoke(info);
+  }
+}
