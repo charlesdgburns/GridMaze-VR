@@ -20,6 +20,7 @@ git clone https://github.com/charlesdgburns/GridMaze-VR.git
 ```
 
 Then in your Unity Hub, simply open the new folder `<your-desired-path>/GridMaze-VR` when you "add project from disk".
+
 ![Unity Hub -> add -> add project from disk](/Screenshots/add_project_from_disk.png)
 
 This has been tested on Editor versions 6.000.0.42f1 and 6.000.2.13f1 (recommended).
