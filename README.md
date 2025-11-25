@@ -25,6 +25,6 @@ Then in your Unity Hub, simply open the new folder `<your-desired-path>/GridMaze
 
 This has been tested on Editor versions 6.000.0.42f1 and 6.000.2.13f1 (recommended).
 
-Note that writing tasks in unity is not at all as nice as in [pyControl](https://pycontrol.readthedocs.io/en/latest/), but you can politely ask your favourite LLM to help translate taskfiles or write new tasks in C# (best example is found in `/Assets/Scripts/GameStateManager.cs`).
+Note that writing tasks in unity is not at all as nice as in [pyControl](https://pycontrol.readthedocs.io/en/latest/), but you can politely ask your favourite LLM to help translate taskfiles or write new tasks in C# (or see an example of this in `/Assets/Scripts/GameStateManager.cs`).
 
 The BigMaze scene is pretty plug-and-play if you want to have an early go. Will be web-playable soon enough.
