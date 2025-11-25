@@ -15,7 +15,7 @@
 Library/
 
 #mouse video data is large
-*MOUSE_DATA/
+MOUSE_DATA/*/*.mp4
 
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
