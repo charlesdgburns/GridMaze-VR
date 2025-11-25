@@ -5,20 +5,23 @@ using System.Collections.Generic;
 
 public class CSVFrameRenderer : EditorWindow
 {
-    public string trajectoriesPath = "Assets/Data/frames.trajectories.htsv";
-    public string trialInfoPath = "Assets/Data/frames.trialInfo.htsv";
-    public string outputFolder = "Screenshots/";
-    public GameObject character;
-    public GameObject mazeParent;
-    public Material cueOnMaterial;
-    public Material cueOffMaterial;
+    public string trajectoriesPath = "MOUSE_DATA/short.frames.trajectories.htsv";
+    public string trialInfoPath = "MOUSE_DATA/short.frames.trialInfo.htsv";
+    public string outputFolder = "MOUSE_DATA/short_pov";
     public int frameDelay = 5;
+    
+    private GameObject character => GameObject.Find("PlayerCapsule");
+    private GameObject mazeParent => GameObject.Find("mazeParent");
+    private Camera renderCamera => character?.transform.Find("MainCamera")?.GetComponent<Camera>();
+    private Material cueOnMaterial => AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CueOn.mat");
+    private Material cueOffMaterial => AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CueOff.mat");
     
     private bool isRendering = false;
     private int currentFrameIndex = 0;
     private int framesWaited = 0;
     private List<FrameData> framesToRender = new List<FrameData>();
     private int capturedFrames = 0;
+    private bool waitingForScreenshot = false;
 
     private class FrameData
     {
@@ -43,10 +46,6 @@ public class CSVFrameRenderer : EditorWindow
         trajectoriesPath = EditorGUILayout.TextField("Trajectories CSV:", trajectoriesPath);
         trialInfoPath = EditorGUILayout.TextField("Trial Info CSV:", trialInfoPath);
         outputFolder = EditorGUILayout.TextField("Output Folder:", outputFolder);
-        character = EditorGUILayout.ObjectField("Character:", character, typeof(GameObject), true) as GameObject;
-        mazeParent = EditorGUILayout.ObjectField("Maze Parent:", mazeParent, typeof(GameObject), true) as GameObject;
-        cueOnMaterial = EditorGUILayout.ObjectField("Cue On Material:", cueOnMaterial, typeof(Material), false) as Material;
-        cueOffMaterial = EditorGUILayout.ObjectField("Cue Off Material:", cueOffMaterial, typeof(Material), false) as Material;
         frameDelay = EditorGUILayout.IntField("Frame Delay:", frameDelay);
         
         EditorGUILayout.Space();
@@ -88,6 +87,11 @@ public class CSVFrameRenderer : EditorWindow
         }
         Debug.Log($"MazeParent assigned: {mazeParent.name}");
 
+        if (renderCamera == null)
+        {
+            Debug.LogWarning("No camera assigned, will use ScreenCapture (captures game view)");
+        }
+
         // Convert relative path to absolute if needed
         string fullTrajPath = Path.GetFullPath(trajectoriesPath);
         string fullTrialPath = Path.GetFullPath(trialInfoPath);
@@ -110,11 +114,13 @@ public class CSVFrameRenderer : EditorWindow
         }
         Debug.Log("Trial info file found!");
 
-        if (!Directory.Exists(outputFolder))
+        string fullOutputPath = Path.GetFullPath(outputFolder);
+        if (!Directory.Exists(fullOutputPath))
         {
-            Directory.CreateDirectory(outputFolder);
-            Debug.Log($"Created output folder: {outputFolder}");
+            Directory.CreateDirectory(fullOutputPath);
+            Debug.Log($"Created output folder: {fullOutputPath}");
         }
+        Debug.Log($"Output folder: {fullOutputPath}");
 
         // Parse CSV files and prepare frames
         if (!PrepareFrames())
@@ -128,6 +134,7 @@ public class CSVFrameRenderer : EditorWindow
         currentFrameIndex = 0;
         framesWaited = 0;
         capturedFrames = 0;
+        waitingForScreenshot = false;
         isRendering = true;
         EditorApplication.update += UpdateRendering;
         
@@ -176,6 +183,8 @@ public class CSVFrameRenderer : EditorWindow
 
         // Process each frame
         int maxRows = Mathf.Min(trajLines.Length, trialLines.Length);
+        Debug.Log($"Processing {maxRows} rows...");
+        
         for (int i = 1; i < maxRows; i++)
         {
             string[] trajValues = trajLines[i].Split('\t');
@@ -200,9 +209,10 @@ public class CSVFrameRenderer : EditorWindow
             FrameData frame = new FrameData
             {
                 rowNumber = i,
-                x = float.Parse(trajValues[xIdx].Trim())*100f-15f, // Convert to Unity units
+                x = float.Parse(trajValues[xIdx].Trim())*100f-15f,
                 y = float.Parse(trajValues[yIdx].Trim())*100f-15f,
-                headDirection = float.Parse(trajValues[headDirIdx].Trim())+90f,
+                // adjust head direction: unity starts at north and goes clockwise, the data starts to the right and goes counterclockwise
+                headDirection = -float.Parse(trajValues[headDirIdx].Trim())+90f,
                 trialPhase = trialPhase,
                 goal = trialValues[goalIdx].Trim()
             };
@@ -210,7 +220,8 @@ public class CSVFrameRenderer : EditorWindow
             framesToRender.Add(frame);
         }
 
-        return true;
+        Debug.Log($"Found {framesToRender.Count} frames matching ITI or navigation phases");
+        return framesToRender.Count > 0;
     }
 
     void UpdateRendering()
@@ -222,6 +233,34 @@ public class CSVFrameRenderer : EditorWindow
 
         FrameData frame = framesToRender[currentFrameIndex];
 
+        // If waiting for screenshot to complete, check and move on
+        if (waitingForScreenshot)
+        {
+            waitingForScreenshot = false;
+            capturedFrames++;
+            
+            // Show progress
+            EditorUtility.DisplayProgressBar("Rendering Frames", 
+                $"Frame {capturedFrames}/{framesToRender.Count} (row {frame.rowNumber})", 
+                (float)capturedFrames / framesToRender.Count);
+
+            // Move to next frame
+            currentFrameIndex++;
+            framesWaited = 0;
+
+            // Check if we're done
+            if (currentFrameIndex >= framesToRender.Count)
+            {
+                StopRendering();
+                EditorUtility.DisplayDialog("Complete", 
+                    $"Rendered {capturedFrames} frames to {outputFolder}", "OK");
+                Debug.Log($"Rendering complete! Total frames captured: {capturedFrames}");
+            }
+
+            Repaint();
+            return;
+        }
+
         // Wait for specified number of frames before capturing
         if (framesWaited < frameDelay)
         {
@@ -229,6 +268,7 @@ public class CSVFrameRenderer : EditorWindow
             {
                 // First frame of delay - set up the scene
                 character.transform.position = new Vector3(frame.x, character.transform.position.y, frame.y);
+                // NB: POV head direction -set first coordinate to control up/down angle
                 character.transform.rotation = Quaternion.Euler(0, frame.headDirection, 0);
 
                 // Handle cue lights
@@ -243,6 +283,7 @@ public class CSVFrameRenderer : EditorWindow
                 }
 
                 SceneView.RepaintAll();
+                Debug.Log($"Setting up frame {capturedFrames + 1}: row {frame.rowNumber}, pos=({frame.x:F2}, {frame.y:F2}), rot={frame.headDirection:F1}°");
             }
             
             framesWaited++;
@@ -250,31 +291,57 @@ public class CSVFrameRenderer : EditorWindow
         }
 
         // Capture the screenshot
-        string filename = $"{outputFolder}frame_{frame.rowNumber:0000}.png";
-        ScreenCapture.CaptureScreenshot(filename);
+        string fullPath = Path.GetFullPath($"{outputFolder}/frame_{frame.rowNumber:0000}.png");
         
-        Debug.Log($"Captured frame for row {frame.rowNumber}: phase={frame.trialPhase}, goal={frame.goal}");
-        capturedFrames++;
-
-        // Show progress
-        EditorUtility.DisplayProgressBar("Rendering Frames", 
-            $"Frame {capturedFrames}/{framesToRender.Count} (row {frame.rowNumber})", 
-            (float)capturedFrames / framesToRender.Count);
-
-        // Move to next frame
-        currentFrameIndex++;
-        framesWaited = 0;
-
-        // Check if we're done
-        if (currentFrameIndex >= framesToRender.Count)
+        if (renderCamera != null)
         {
-            StopRendering();
-            EditorUtility.DisplayDialog("Complete", 
-                $"Rendered {capturedFrames} frames to {outputFolder}", "OK");
-            Debug.Log($"Rendering complete! Total frames captured: {capturedFrames}");
-        }
+            // Use RenderTexture for better control
+            RenderTexture rt = new RenderTexture(1920, 1080, 24);
+            renderCamera.targetTexture = rt;
+            renderCamera.Render();
+            
+            RenderTexture.active = rt;
+            Texture2D screenshot = new Texture2D(1920, 1080, TextureFormat.RGB24, false);
+            screenshot.ReadPixels(new Rect(0, 0, 1920, 1080), 0, 0);
+            screenshot.Apply();
+            
+            byte[] bytes = screenshot.EncodeToPNG();
+            File.WriteAllBytes(fullPath, bytes);
+            
+            renderCamera.targetTexture = null;
+            RenderTexture.active = null;
+            DestroyImmediate(rt);
+            DestroyImmediate(screenshot);
+            
+            Debug.Log($"Captured frame to: {fullPath}");
+            waitingForScreenshot = false;
+            capturedFrames++;
+            
+            // Continue immediately
+            EditorUtility.DisplayProgressBar("Rendering Frames", 
+                $"Frame {capturedFrames}/{framesToRender.Count} (row {frame.rowNumber})", 
+                (float)capturedFrames / framesToRender.Count);
 
-        Repaint();
+            currentFrameIndex++;
+            framesWaited = 0;
+
+            if (currentFrameIndex >= framesToRender.Count)
+            {
+                StopRendering();
+                EditorUtility.DisplayDialog("Complete", 
+                    $"Rendered {capturedFrames} frames to {outputFolder}", "OK");
+                Debug.Log($"Rendering complete! Total frames captured: {capturedFrames}");
+            }
+
+            Repaint();
+        }
+        else
+        {
+            // Use ScreenCapture (needs to wait a frame)
+            ScreenCapture.CaptureScreenshot(fullPath);
+            Debug.Log($"Requested screenshot to: {fullPath}");
+            waitingForScreenshot = true;
+        }
     }
 
     void StopRendering()
