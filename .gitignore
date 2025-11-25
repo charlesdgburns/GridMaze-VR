@@ -10,10 +10,12 @@
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
-
+/Assets/Data
 #Let's not save the library and packages:
-*/StarterAssets
 Library/
+
+#mouse video data is large
+*MOUSE_DATA/
 
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
